@@ -18,6 +18,9 @@
     "url": "https://github.com/alibaba/lowcode-tools.git",
     "directory": "packages/build-plugin-lowcode"
   },
+  "publishConfig": {
+    "access": "public"
+  },
   "author": "",
   "license": "MIT",
   "dependencies": {
