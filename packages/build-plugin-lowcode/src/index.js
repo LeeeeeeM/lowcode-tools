@@ -1071,113 +1071,140 @@ async function bundleAssets(options, pluginOptions, metaTypes, renderTypes, exec
     }),
   );
   const assetsPaths = await Promise.all(
-    ['daily', 'prod', 'dev'].map(async (item) => {
-      const _baseUrl =
-        (baseUrl && baseUrl[item]) ||
-        `${UNPKG_BASE_URL_MAP[engineScope]}/${package.name}@${package.version}`;
-      let urls;
-      let metaUrl;
-      const metaUrls = {};
-      const advancedRenderUrls = {};
-      const advancedEditUrls = {};
-      const advancedMetaUrls = {};
-      if (item === 'dev') {
-        urls = JSON.stringify([`./view.js`, `./view.css`]);
-        metaTypes.forEach((item) => {
-          const _url = item ? `./meta.${item}.js` : './meta.js';
-          if (!metaUrl) metaUrl = _url;
-          metaUrls[item || 'default'] = _url;
-          advancedMetaUrls[item || 'default'] = [_url];
+    [
+      ...['daily', 'prod', 'dev'].map(async (item) => {
+        const _baseUrl =
+          (baseUrl && baseUrl[item]) ||
+          `${UNPKG_BASE_URL_MAP[engineScope]}/${package.name}@${package.version}`;
+        let urls;
+        let metaUrl;
+        const metaUrls = {};
+        const advancedRenderUrls = {};
+        const advancedEditUrls = {};
+        const advancedMetaUrls = {};
+        if (item === 'dev') {
+          urls = JSON.stringify([`./view.js`, `./view.css`]);
+          metaTypes.forEach((item) => {
+            const _url = item ? `./meta.${item}.js` : './meta.js';
+            if (!metaUrl) metaUrl = _url;
+            metaUrls[item || 'default'] = _url;
+            advancedMetaUrls[item || 'default'] = [_url];
+          });
+          renderTypes.forEach((renderType) => {
+            advancedRenderUrls[renderType] = [
+              `./render/${renderType}/view.js`,
+              `./render/${renderType}/view.css`,
+            ];
+          });
+        } else {
+          urls = JSON.stringify([
+            `${_baseUrl}/${buildTarget}/${lowcodeDir}/view.js`,
+            `${_baseUrl}/${buildTarget}/${lowcodeDir}/view.css`,
+          ]);
+          metaTypes.forEach((item) => {
+            const _url = item
+              ? `${_baseUrl}/${buildTarget}/${lowcodeDir}/meta.${item}.js`
+              : `${_baseUrl}/${buildTarget}/${lowcodeDir}/meta.js`;
+            if (!metaUrl) metaUrl = _url;
+            metaUrls[item || 'default'] = _url;
+            advancedMetaUrls[item || 'default'] = [_url];
+          });
+          renderTypes.forEach((renderType) => {
+            advancedRenderUrls[renderType] = [
+              `${_baseUrl}/${buildTarget}/${lowcodeDir}/render/${renderType}/view.js`,
+              `${_baseUrl}/${buildTarget}/${lowcodeDir}/render/${renderType}/view.css`,
+            ];
+          });
+        }
+        const _urls = advancedRenderUrls.default || renderUrls || umdUrls;
+        const _editUrls = editUrls || umdUrls;
+        const assetsPath = generateEntry({
+          template: 'assets.json',
+          filename: `assets-${item}.json`,
+          rootDir,
+          params: {
+            package: packageName,
+            version: package.version,
+            library,
+            urls: _urls ? JSON.stringify(_urls) : urls,
+            editUrls: _editUrls ? JSON.stringify(_editUrls) : urls,
+            metaUrl,
+            metaUrls: JSON.stringify(metaUrls),
+            metaExportName,
+            groups: JSON.stringify(groups),
+            categories: JSON.stringify(categories),
+            ignoreComponents: JSON.stringify(ignoreComponents),
+            advancedRenderUrls: JSON.stringify(advancedRenderUrls),
+            advancedEditUrls: JSON.stringify(advancedEditUrls),
+            advancedMetaUrls: JSON.stringify(advancedMetaUrls),
+          },
         });
-        renderTypes.forEach((renderType) => {
-          advancedRenderUrls[renderType] = [
-            `./render/${renderType}/view.js`,
-            `./render/${renderType}/view.css`,
-          ];
-        });
-      } else {
-        urls = JSON.stringify([
-          `${_baseUrl}/${buildTarget}/${lowcodeDir}/view.js`,
-          `${_baseUrl}/${buildTarget}/${lowcodeDir}/view.css`,
-        ]);
-        metaTypes.forEach((item) => {
-          const _url = item
-            ? `${_baseUrl}/${buildTarget}/${lowcodeDir}/meta.${item}.js`
-            : `${_baseUrl}/${buildTarget}/${lowcodeDir}/meta.js`;
-          if (!metaUrl) metaUrl = _url;
-          metaUrls[item || 'default'] = _url;
-          advancedMetaUrls[item || 'default'] = [_url];
-        });
-        renderTypes.forEach((renderType) => {
-          advancedRenderUrls[renderType] = [
-            `${_baseUrl}/${buildTarget}/${lowcodeDir}/render/${renderType}/view.js`,
-            `${_baseUrl}/${buildTarget}/${lowcodeDir}/render/${renderType}/view.css`,
-          ];
-        });
-      }
-      const _urls = advancedRenderUrls.default || renderUrls || umdUrls;
-      const _editUrls = editUrls || umdUrls;
-      const assetsPath = generateEntry({
-        template: 'assets.json',
-        filename: `assets-${item}.json`,
-        rootDir,
-        params: {
-          package: packageName,
-          version: package.version,
-          library,
-          urls: _urls ? JSON.stringify(_urls) : urls,
-          editUrls: _editUrls ? JSON.stringify(_editUrls) : urls,
-          metaUrl,
-          metaUrls: JSON.stringify(metaUrls),
-          metaExportName,
-          groups: JSON.stringify(groups),
-          categories: JSON.stringify(categories),
-          ignoreComponents: JSON.stringify(ignoreComponents),
-          advancedRenderUrls: JSON.stringify(advancedRenderUrls),
-          advancedEditUrls: JSON.stringify(advancedEditUrls),
-          advancedMetaUrls: JSON.stringify(advancedMetaUrls),
-        },
-      });
-      let schemas = baseSchemas;
-      if (item === 'dev') {
-        schemas = [...extraSchemas, ...baseSchemas];
-      }
-      const assetsData = require(assetsPath);
-      schemas.forEach((schemaItem) => {
-        mergeWith(assetsData, schemaItem, (objValue, srcValue) => {
-          if (Array.isArray(objValue) && Array.isArray(srcValue)) {
-            if (typeof objValue[0] === 'string') {
-              const tempMap = {};
-              srcValue.forEach((srcItem) => {
-                tempMap[srcItem] = true;
-              });
-              objValue.forEach((objItem) => {
-                if (!tempMap[objItem]) {
-                  srcValue.push(objItem);
-                }
-              });
-              return srcValue;
-            } else {
-              return srcValue.concat(objValue);
+        let schemas = baseSchemas;
+        if (item === 'dev') {
+          schemas = [...extraSchemas, ...baseSchemas];
+        }
+        const assetsData = require(assetsPath);
+        schemas.forEach((schemaItem) => {
+          mergeWith(assetsData, schemaItem, (objValue, srcValue) => {
+            if (Array.isArray(objValue) && Array.isArray(srcValue)) {
+              if (typeof objValue[0] === 'string') {
+                const tempMap = {};
+                srcValue.forEach((srcItem) => {
+                  tempMap[srcItem] = true;
+                });
+                objValue.forEach((objItem) => {
+                  if (!tempMap[objItem]) {
+                    srcValue.push(objItem);
+                  }
+                });
+                return srcValue;
+              } else {
+                return srcValue.concat(objValue);
+              }
             }
+          });
+        });
+        const packageMap = {};
+        assetsData.packages.forEach((packageItem) => {
+          if (!packageMap[packageItem.package]) {
+            packageMap[packageItem.package] = packageItem;
           }
         });
-      });
-      const packageMap = {};
-      assetsData.packages.forEach((packageItem) => {
-        if (!packageMap[packageItem.package]) {
-          packageMap[packageItem.package] = packageItem;
-        }
-      });
-      assetsData.packages = Object.values(packageMap);
-      fse.outputFileSync(assetsPath, JSON.stringify(assetsData, null, 2));
-      return assetsPath;
-    }),
+        assetsData.packages = Object.values(packageMap);
+        fse.outputFileSync(assetsPath, JSON.stringify(assetsData, null, 2));
+        return assetsPath;
+      }),
+      ...['meta-info'].map(async (item) => {
+        const metaInfoPath = generateEntry({
+          template: 'meta-info.json',
+          filename: `${item}.json`,
+          rootDir,
+          params: {
+            meta: metaExportName,
+            version: package.version,
+            lib: packageName
+          },
+        });
+        const metaInfoData = require(metaInfoPath);
+        fse.outputFileSync(metaInfoPath, JSON.stringify(metaInfoData, null, 2));
+        return metaInfoPath;
+      })
+    ]
   );
+  console.log('assetsPaths: ', assetsPaths)
   if (!execCompile) return assetsPaths;
   onHook('after.build.compile', () => {
     ['dev', 'daily', 'prod'].forEach((item) => {
       const filename = `assets-${item}.json`;
+      const targetPath = path.resolve(rootDir, `${buildTarget}/${lowcodeDir}/${filename}`);
+      const originPath = path.resolve(rootDir, `.tmp/${filename}`);
+      if (!fse.existsSync(originPath)) {
+        return;
+      }
+      fse.outputFileSync(targetPath, JSON.stringify(require(originPath), null, 2));
+    });
+    ['meta-info'].forEach((item) => {
+      const filename = `${item}.json`;
       const targetPath = path.resolve(rootDir, `${buildTarget}/${lowcodeDir}/${filename}`);
       const originPath = path.resolve(rootDir, `.tmp/${filename}`);
       if (!fse.existsSync(originPath)) {
